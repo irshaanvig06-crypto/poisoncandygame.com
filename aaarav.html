@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Poison Candy Game</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background: linear-gradient(45deg, #ff69b4, #ff1493, #8b0000, #ffa500);
+            background-size: 400% 400%;
+            animation: gradientShift 10s ease infinite;
+            margin: 0;
+            padding: 20px;
+            color: white;
+        }
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        h1 {
+            color: #fff;
+            text-shadow: 2px 2px 4px #000;
+        }
+        .setup {
+            margin: 20px 0;
+        }
+        .candies {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            margin: 20px 0;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .candy {
+            width: 60px;
+            height: 60px;
+            background-color: #ff69b4;
+            border: 2px solid #333;
+            border-radius: 10px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            transition: background-color 0.3s;
+        }
+        .candy:hover {
+            background-color: #ff1493;
+        }
+        .candy.eaten {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        .poison {
+            background-color: #8b0000 !important;
+        }
+        .player-poison {
+            background-color: #800080; /* Purple for player's poison */
+            border-color: #000;
+        }
+        #status {
+            font-size: 18px;
+            margin: 20px 0;
+            height: 30px;
+            font-weight: bold;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #playAgain {
+            display: none;
+        }
+        input {
+            padding: 5px;
+            font-size: 16px;
+            margin: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Poison Candy Game</h1>
+    <div class="setup">
+        <label for="numCandies">Number of Candies (5-30):</label>
+        <input type="number" id="numCandies" min="5" max="30" value="5">
+        <button id="startGame">Start Game</button>
+    </div>
+    <p id="instructions">Set the number of candies and click Start Game. You choose your poison first (it will look poisonous), then the computer chooses its poison (hidden).</p>
+    <div class="candies" id="candiesContainer"></div>
+    <div id="status"></div>
+    <button id="playAgain">Play Again</button>
+
+    <script>
+        const numCandiesInput = document.getElementById('numCandies');
+        const startGameBtn = document.getElementById('startGame');
+        const instructions = document.getElementById('instructions');
+        const candiesContainer = document.getElementById('candiesContainer');
+        const status = document.getElementById('status');
+        const playAgainBtn = document.getElementById('playAgain');
+
+        let numCandies = 5;
+        let playerPoison = null;
+        let computerPoison = null;
+        let eaten = [];
+        let playerTurn = true;
+        let gameOver = false;
+        let choosingPoison = true;
+        let computerChoosing = false;
+
+        function createCandies() {
+            candiesContainer.innerHTML = '';
+            for (let i = 1; i <= numCandies; i++) {
+                const candy = document.createElement('div');
+                candy.classList.add('candy');
+                candy.dataset.id = i;
+                candy.textContent = '🍬'; // Small candy emoji
+                candiesContainer.appendChild(candy);
+            }
+        }
+
+        function resetGame() {
+            numCandies = parseInt(numCandiesInput.value);
+            if (numCandies < 5 || numCandies > 30) {
+                alert('Number of candies must be between 5 and 30.');
+                return;
+            }
+            playerPoison = null;
+            computerPoison = null;
+            eaten = [];
+            playerTurn = true;
+            gameOver = false;
+            choosingPoison = true;
+            computerChoosing = false;
+            createCandies();
+            status.textContent = 'Choose your poison candy by clicking on it.';
+            playAgainBtn.style.display = 'none';
+            instructions.style.display = 'none';
+        }
+
+        function computerChoosePoison() {
+            const available = Array.from(document.querySelectorAll('.candy')).filter(c => parseInt(c.dataset.id) !== playerPoison);
+            if (available.length === 0) return; // Edge case, but unlikely
+            const choice = available[Math.floor(Math.random() * available.length)];
+            computerPoison = parseInt(choice.dataset.id);
+            status.textContent = `Computer chose its poison (hidden). Your turn to eat a candy!`;
+            choosingPoison = false;
+            computerChoosing = false;
+        }
+
+        function computerTurn() {
+            if (gameOver) return;
+            const available = Array.from(document.querySelectorAll('.candy')).filter(c => !eaten.includes(parseInt(c.dataset.id)));
+            if (available.length === 0) return;
+            const choice = available[Math.floor(Math.random() * available.length)];
+            const id = parseInt(choice.dataset.id);
+            eaten.push(id);
+            choice.classList.add('eaten');
+            choice.style.pointerEvents = 'none';
+            if (id === playerPoison || id === computerPoison) {
+                choice.classList.add('poison');
+                if (id === playerPoison) {
+                    status.textContent = `Computer ate your poison! You win!`;
+                } else {
+                    status.textContent = `Computer ate its own poison! You win!`;
+                }
+                gameOver = true;
+                playAgainBtn.style.display = 'block';
+            } else {
+                status.textContent = `Computer ate a candy. Safe! Your turn.`;
+                playerTurn = true;
+            }
+        }
+
+        candiesContainer.addEventListener('click', (e) => {
+            if (!e.target.classList.contains('candy') || gameOver) return;
+            const id = parseInt(e.target.dataset.id);
+            if (choosingPoison && !computerChoosing) {
+                playerPoison = id;
+                e.target.classList.add('player-poison');
+                e.target.textContent = '☠️'; // Change to skull to look poisonous
+                status.textContent = 'Computer is choosing its poison...';
+                choosingPoison = false;
+                computerChoosing = true;
+                setTimeout(computerChoosePoison, 1000); // Delay for computer choice
+                return;
+            }
+            if (choosingPoison || computerChoosing || !playerTurn || eaten.includes(id)) return;
+            eaten.push(id);
+            e.target.classList.add('eaten');
+            e.target.style.pointerEvents = 'none';
+            if (id === playerPoison || id === computerPoison) {
+                e.target.classList.add('poison');
+                if (id === playerPoison) {
+                    status.textContent = `You ate your own poison! You lose!`;
+                } else {
+                    status.textContent = `You ate the computer's poison! You lose!`;
+                }
+                gameOver = true;
+                playAgainBtn.style.display = 'block';
+            } else {
+                status.textContent = `You ate a candy. Safe! Computer's turn.`;
+                playerTurn = false;
+                setTimeout(computerTurn, 1000); // Delay for suspense
+            }
+        });
+
+        startGameBtn.addEventListener('click', resetGame);
+        playAgainBtn.addEventListener('click', resetGame);
+
+        // Initial setup
+        createCandies();
+    </script>
+</body>
+</html>
